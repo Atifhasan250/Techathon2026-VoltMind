@@ -1,10 +1,11 @@
-import { getAllDevices, startSimulator } from "@/lib/devices";
+import { getAllDevices } from "@/lib/devices";
+import { startOfficeRuntime } from "@/lib/runtime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export function GET() {
-  startSimulator();
+  startOfficeRuntime();
   const devices = getAllDevices();
   return Response.json({ devices, count: devices.length });
 }

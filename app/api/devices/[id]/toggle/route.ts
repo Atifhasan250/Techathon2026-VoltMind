@@ -1,4 +1,5 @@
-import { startSimulator, toggleDevice } from "@/lib/devices";
+import { toggleDevice } from "@/lib/devices";
+import { startOfficeRuntime } from "@/lib/runtime";
 
 export const runtime = "nodejs";
 
@@ -6,7 +7,7 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  startSimulator();
+  startOfficeRuntime();
   const { id } = await params;
   const device = toggleDevice(decodeURIComponent(id));
 

@@ -1,10 +1,10 @@
-import { startSimulator } from "@/lib/devices";
 import { getOfficeSnapshot } from "@/lib/snapshot";
+import { startOfficeRuntime } from "@/lib/runtime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export function GET() {
-  startSimulator();
+  startOfficeRuntime();
   return Response.json(getOfficeSnapshot());
 }

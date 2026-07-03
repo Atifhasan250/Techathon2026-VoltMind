@@ -1,5 +1,6 @@
 import { resolveRoomName } from "@/lib/constants";
-import { getDevicesByRoom, startSimulator } from "@/lib/devices";
+import { getDevicesByRoom } from "@/lib/devices";
+import { startOfficeRuntime } from "@/lib/runtime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -8,7 +9,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ name: string }> },
 ) {
-  startSimulator();
+  startOfficeRuntime();
   const { name } = await params;
   const room = resolveRoomName(decodeURIComponent(name));
 

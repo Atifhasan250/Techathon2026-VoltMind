@@ -1,5 +1,6 @@
-import { deviceEvents, getPowerSummary, startSimulator } from "@/lib/devices";
+import { deviceEvents, getPowerSummary } from "@/lib/devices";
 import { getActiveAlerts } from "@/lib/alerts";
+import { startOfficeRuntime } from "@/lib/runtime";
 import { getOfficeSnapshot } from "@/lib/snapshot";
 import type { Device, StreamEvent } from "@/lib/types";
 
@@ -9,7 +10,7 @@ export const runtime = "nodejs";
 const HEARTBEAT_INTERVAL_MS = 25_000;
 
 export function GET(request: Request) {
-  startSimulator();
+  startOfficeRuntime();
   const encoder = new TextEncoder();
   let cleanup = () => {};
 

@@ -1,9 +1,10 @@
-import { getPowerSummary, startSimulator } from "@/lib/devices";
+import { getPowerSummary } from "@/lib/devices";
+import { startOfficeRuntime } from "@/lib/runtime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export function GET() {
-  startSimulator();
+  startOfficeRuntime();
   return Response.json({ power: getPowerSummary() });
 }

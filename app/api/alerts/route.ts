@@ -1,11 +1,11 @@
 import { getActiveAlerts } from "@/lib/alerts";
-import { startSimulator } from "@/lib/devices";
+import { startOfficeRuntime } from "@/lib/runtime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export function GET() {
-  startSimulator();
+  startOfficeRuntime();
   const alerts = getActiveAlerts();
   return Response.json({ alerts, count: alerts.length });
 }

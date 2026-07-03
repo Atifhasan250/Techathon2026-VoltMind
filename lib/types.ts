@@ -23,6 +23,27 @@ export interface PowerSummary {
   measuredAt: string;
 }
 
+export type AnalyticsRange = "1h" | "8h" | "24h" | "7d" | "30d" | "today";
+
+export interface PowerHistoryPoint {
+  timestamp: string;
+  averageWatts: number;
+  peakWatts: number;
+  perRoom: Record<RoomName, number>;
+}
+
+export interface EnergyAnalytics {
+  range: AnalyticsRange;
+  persistenceEnabled: boolean;
+  actualEnergyKwh: number;
+  estimatedDailyKwh: number;
+  averageWatts: number;
+  peakWatts: number;
+  perRoomKwh: Record<RoomName, number>;
+  samples: PowerHistoryPoint[];
+  measuredAt: string;
+}
+
 export interface DeviceToggleResponse {
   success: true;
   device: Device;
