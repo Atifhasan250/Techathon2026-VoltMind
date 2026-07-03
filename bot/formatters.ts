@@ -1,5 +1,5 @@
 import { ROOM_NAMES, resolveRoomName } from "../lib/constants";
-import type { Alert, Device, PowerSummary, RoomName } from "../lib/types";
+import type { Alert, Device, EnergyAnalytics, PowerSummary, RoomName } from "../lib/types";
 
 function onDevices(devices: Device[]): Device[] {
   return devices.filter((device) => device.status === "on");
@@ -28,9 +28,12 @@ export function formatRoom(devices: Device[], requestedRoom: string): string | u
   return `${room} — ${details.join(", ")}.`;
 }
 
-export function formatUsage(power: PowerSummary): string {
+export function formatUsage(power: PowerSummary, analytics?: EnergyAnalytics): string {
   const rooms = ROOM_NAMES.map((room) => `${room}: ${power.perRoom[room]}W`).join(", ");
-  return `Total power right now: ${power.totalWatts}W. Today's estimated usage: ${power.estimatedDailyKwh} kWh. ${rooms}.`;
+  const energy = analytics
+    ? `Today's measured usage: ${analytics.actualEnergyKwh} kWh.`
+    : `Today's estimated usage: ${power.estimatedDailyKwh} kWh.`;
+  return `Total power right now: ${power.totalWatts}W. ${energy} ${rooms}.`;
 }
 
 export function formatAlert(alert: Alert): string {

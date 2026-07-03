@@ -1,4 +1,4 @@
-import type { Alert, Device, PowerSummary } from "../lib/types";
+import type { Alert, Device, EnergyAnalytics, PowerSummary } from "../lib/types";
 
 export interface OfficeSnapshot {
   devices: Device[];
@@ -19,4 +19,18 @@ export async function getOfficeSnapshot(): Promise<OfficeSnapshot> {
   }
 
   return (await response.json()) as OfficeSnapshot;
+}
+
+export async function getEnergyAnalytics(): Promise<EnergyAnalytics | undefined> {
+  try {
+    const response = await fetch(`${baseUrl}/api/analytics?range=today`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!response.ok) return undefined;
+    const body = (await response.json()) as { analytics: EnergyAnalytics };
+    return body.analytics;
+  } catch {
+    return undefined;
+  }
 }

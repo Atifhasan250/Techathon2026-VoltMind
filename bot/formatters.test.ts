@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { formatRoom, formatStatus, formatUsage } from "./formatters";
-import type { Device, PowerSummary } from "../lib/types";
+import type { Device, EnergyAnalytics, PowerSummary } from "../lib/types";
 
 const now = "2026-07-03T12:00:00.000Z";
 const devices: Device[] = [
@@ -25,4 +25,20 @@ test("usage preserves backend totals", () => {
   const power: PowerSummary = { totalWatts: 75, perRoom: { "Drawing Room": 60, "Work Room 1": 0, "Work Room 2": 15 }, estimatedDailyKwh: 0.6, devicesOn: 2, devicesOff: 13, measuredAt: now };
   assert.match(formatUsage(power), /Total power right now: 75W/);
   assert.match(formatUsage(power), /0.6 kWh/);
+});
+
+test("usage prefers measured energy when history analytics are available", () => {
+  const power: PowerSummary = { totalWatts: 75, perRoom: { "Drawing Room": 60, "Work Room 1": 0, "Work Room 2": 15 }, estimatedDailyKwh: 0.6, devicesOn: 2, devicesOff: 13, measuredAt: now };
+  const analytics: EnergyAnalytics = {
+    range: "today",
+    persistenceEnabled: true,
+    actualEnergyKwh: 0.42,
+    estimatedDailyKwh: 0.6,
+    averageWatts: 70,
+    peakWatts: 135,
+    perRoomKwh: { "Drawing Room": 0.3, "Work Room 1": 0, "Work Room 2": 0.12 },
+    samples: [],
+    measuredAt: now,
+  };
+  assert.match(formatUsage(power, analytics), /Today's measured usage: 0.42 kWh/);
 });

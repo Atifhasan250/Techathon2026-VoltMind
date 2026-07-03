@@ -1,5 +1,5 @@
 import type { Message } from "discord.js";
-import { getOfficeSnapshot } from "./backend";
+import { getEnergyAnalytics, getOfficeSnapshot } from "./backend";
 import { formatRoom, formatStatus, formatUsage } from "./formatters";
 import { humanize } from "./llm";
 
@@ -34,7 +34,7 @@ export async function handleCommand(message: Message): Promise<void> {
         break;
       }
       case "!usage":
-        facts = formatUsage(snapshot.power);
+        facts = formatUsage(snapshot.power, await getEnergyAnalytics());
         context = "Report current office power and estimated daily energy usage.";
         break;
       default:
