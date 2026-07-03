@@ -24,9 +24,10 @@ Open `system-architecture.excalidraw` to see the complete information flow:
 1. The simulator changes one of the 15 devices.
 2. The shared in-memory store updates status and `lastChanged`.
 3. The Next.js backend exposes the same state over REST and SSE.
-4. The dashboard consumes REST snapshots, SSE updates and the toggle endpoint.
-5. The Discord bot consumes `/api/state` and posts proactive alerts.
-6. Gemini may rewrite factual text, but never owns or changes device state.
+4. MongoDB optionally stores minute power samples and device-change events.
+5. The dashboard consumes REST snapshots, SSE updates, analytics and toggles.
+6. The Discord bot consumes `/api/state` and posts proactive alerts.
+7. Gemini may rewrite factual text, but never owns or changes device state.
 
 ## Open and edit
 
