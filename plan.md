@@ -2,7 +2,7 @@
 
 ## Overview
 
-Build an office device monitoring system with **18 simulated electrical devices** (fans + lights across 3 rooms), a **real-time web dashboard**, and a **Discord bot** — all sharing one backend. The system tracks device on/off states, power consumption, and generates alerts for anomalies.
+Build an office device monitoring system with **15 simulated electrical devices** (2 fans and 3 lights in each of 3 rooms), a **real-time web dashboard**, and a **Discord bot** — all sharing one backend. The system tracks device on/off states, power consumption, and generates alerts for anomalies.
 
 ---
 
@@ -10,7 +10,7 @@ Build an office device monitoring system with **18 simulated electrical devices*
 
 | Criterion | Weight | Our Strategy |
 |-----------|--------|-------------|
-| Working web dashboard with real-time data | **20%** | WebSocket-powered live updates, no page refresh needed |
+| Working web dashboard with real-time data | **20%** | SSE-powered live updates, no page refresh needed |
 | Working Discord bot reflecting real simulated data | **10%** | Bot queries the same backend API, LLM-humanized responses |
 | Dashboard visuals and UX quality | **10%** | Premium dark-mode dashboard using `impeccable` + `ui-ux-pro-max` + `gpt-taste` skills |
 | Clear, correct system diagram | **15%** | Excalidraw diagram using `excalidraw-diagram-generator` skill (NOT Mermaid) |
@@ -25,7 +25,7 @@ Build an office device monitoring system with **18 simulated electrical devices*
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     SIMULATED DEVICE LAYER                      │
-│  In-memory store: 18 devices (3 rooms × 6 devices each)        │
+│  In-memory store: 15 devices (3 rooms × 5 devices each)        │
 │  Simulator timer: randomly toggles devices, updates timestamps  │
 │  Calculates power draw per device based on type + status        │
 └──────────────────────────┬──────────────────────────────────────┘
@@ -35,14 +35,14 @@ Build an office device monitoring system with **18 simulated electrical devices*
 │                     NEXT.JS BACKEND (API)                       │
 │                                                                 │
 │  Route Handlers (app/api/):                                     │
-│  ├── GET  /api/devices       → All 18 devices + state           │
+│  ├── GET  /api/devices       → All 15 devices + state           │
 │  ├── GET  /api/devices/room/[name] → Devices for a room         │
 │  ├── GET  /api/power         → Total + per-room power summary   │
 │  ├── GET  /api/alerts        → Active anomaly alerts            │
 │  ├── POST /api/devices/[id]/toggle → Toggle a device on/off     │
 │  └── GET  /api/sse           → Server-Sent Events stream        │
 │                                                                 │
-│  WebSocket / SSE server pushes state changes to dashboard       │
+│  SSE stream pushes state changes to the dashboard               │
 └────────┬────────────────────────────┬───────────────────────────┘
          │                            │
          ▼                            ▼
@@ -55,7 +55,7 @@ Build an office device monitoring system with **18 simulated electrical devices*
 │ • Alerts Panel      │    │  !usage → power stats    │
 │ • Top-View Layout   │    │                          │
 │ • Auto-updates      │    │  LLM humanized replies   │
-│   via SSE/WS        │    │  Alert push to channel   │
+│   via SSE           │    │  Alert push to channel   │
 └─────────────────────┘    └──────────────────────────┘
 ```
 
@@ -165,8 +165,8 @@ DISCORD_TOKEN=your_bot_token_here
 DISCORD_CHANNEL_ID=your_channel_id_here
 ```
 
-#### 4. Pick one Gemini API key
-Your `.env` already has 3 Gemini keys. The agent will use `GEMINI_API_KEY_1` for the bot's LLM responses.
+#### 4. Configure Gemini keys (optional)
+Add up to three keys as `GEMINI_API_KEY_1`, `GEMINI_API_KEY_2`, and `GEMINI_API_KEY_3`. The bot rotates keys after failures and retains a deterministic fallback, so core commands do not depend on an LLM.
 
 ---
 
@@ -178,7 +178,7 @@ This is the **foundation** — everything else reads from this.
 |---|------|-----|---------|
 | 1.1 | Define TypeScript interfaces | 🤖 | `Device`, `Room`, `PowerSummary`, `Alert` types in `lib/types.ts` |
 | 1.2 | Define constants | 🤖 | Room names (`Drawing Room`, `Work Room 1`, `Work Room 2`), wattage values (fan=60W, light=15W), office hours (9AM–5PM) in `lib/constants.ts` |
-| 1.3 | Create device store | 🤖 | In-memory store with all 18 devices, initial random states, in `lib/devices.ts` |
+| 1.3 | Create device store | 🤖 | In-memory store with all 15 devices, initial random states, in `lib/devices.ts` |
 | 1.4 | Build simulator engine | 🤖 | Timer that randomly toggles 1-2 devices every 5-15 seconds, updates `lastChanged` timestamps |
 | 1.5 | Build alert detection logic | 🤖 | Check for: devices ON after office hours (after 5PM), all devices in a room ON for 2+ hours continuously. In `lib/alerts.ts` |
 | 1.6 | Add event emitter for state changes | 🤖 | When any device changes, emit an event so SSE can push updates |
@@ -190,7 +190,7 @@ interface Device {
   name: string;            // e.g., "Fan 1"
   type: "fan" | "light";
   room: "Drawing Room" | "Work Room 1" | "Work Room 2";
-  status: boolean;         // true = ON, false = OFF
+  status: "on" | "off";
   wattage: number;         // 60 for fan, 15 for light (when ON)
   lastChanged: string;     // ISO timestamp
 }
@@ -202,7 +202,7 @@ interface Device {
 
 | # | Task | Who | Details |
 |---|------|-----|---------|
-| 2.1 | `GET /api/devices` | 🤖 | Returns all 18 devices with current state |
+| 2.1 | `GET /api/devices` | 🤖 | Returns all 15 devices with current state |
 | 2.2 | `GET /api/devices/room/[name]` | 🤖 | Returns devices filtered by room name |
 | 2.3 | `POST /api/devices/[id]/toggle` | 🤖 | Toggles a device's on/off state, updates timestamp, emits change event |
 | 2.4 | `GET /api/power` | 🤖 | Returns total watts, per-room watts, estimated daily kWh |
@@ -232,7 +232,7 @@ This is the **highest-weight deliverable** (20% dashboard + 10% UX = 30% total).
 |---|------|-----|---------|
 | 3B.1 | Build `useDeviceStream` hook | 🤖 | Custom React hook that connects to `/api/sse`, parses events, returns reactive device state |
 | 3B.2 | Build `DeviceCard` component | 🤖 | Individual card for one device — shows name, type icon (SVG light bulb / fan blade), on/off status with glow effect, wattage, last changed time. Toggle button to switch state |
-| 3B.3 | Build `RoomSection` component | 🤖 | Groups 6 devices under a room heading, shows room total power |
+| 3B.3 | Build `RoomSection` component | 🤖 | Groups 5 devices under a room heading, shows room total power |
 | 3B.4 | Build `DevicePanel` component | 🤖 | Container for all 3 room sections, organized as tabs or stacked sections |
 | 3B.5 | Build `PowerMeter` component | 🤖 | Shows total office power (big number), per-room breakdown bars, estimated daily kWh. Animated counter for live feel |
 | 3B.6 | Build `AlertsPanel` component | 🤖 | Shows active alerts with timestamps, severity indicators, auto-dismisses resolved alerts. Pulse animation on new alerts |
@@ -464,9 +464,9 @@ The dashboard will use a **dark mode** theme inspired by professional monitoring
 
 2. **Wokwi vs Tinkercad?** The hackathon says to explore both. Do you have a preference? (The agent will write the Arduino sketch either way — you just need to wire it in the tool)
 
-3. **Which Gemini API key for the bot?** You have 3 keys in `.env`. Should the agent use `GEMINI_API_KEY_1` for the LLM-powered bot responses?
+3. **Gemini key strategy (resolved)**: Rotate through all three configured keys and preserve a deterministic fallback.
 
-4. **Do you want the agent to start building immediately after approval**, or do you want to set up the Discord bot first and then give the go-ahead?
+4. **Discord implementation (resolved)**: The bot is implemented first and runs as a separate process against the shared backend.
 
 5. **Git strategy**: Should the agent commit as it goes, or do you prefer to review all changes first and commit yourself?
 
