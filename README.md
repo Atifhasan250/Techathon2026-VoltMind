@@ -15,9 +15,11 @@
 - [Discord bot usage](#discord-bot-usage)
 - [API documentation](#api-documentation)
 - [Real-time update flow](#real-time-update-flow)
+- [Historical energy analytics](#historical-energy-analytics)
 - [AI integration](#ai-integration)
 - [Project structure](#project-structure)
 - [Diagrams](#diagrams)
+- [Hardware circuit simulation](#hardware-circuit-simulation)
 - [Testing and verification](#testing-and-verification)
 - [Known limitations and remaining work](#known-limitations-and-remaining-work)
 
@@ -65,6 +67,8 @@ VoltMind uses a deliberately small architecture with one source of truth:
    dashboard.
 8. Gemini may rewrite verified facts conversationally, but never creates or
    owns device state.
+9. MongoDB optionally stores minute-level power samples and device changes for
+   historical energy analytics.
 
 This avoids unnecessary databases, queues, microservices, and WebSocket
 infrastructure while still satisfying the hackathon's live-data requirements.
@@ -100,6 +104,7 @@ the same Next.js backend. The editable architecture source is available here:
 | UI runtime | React 19 | Dashboard interface |
 | Styling | Tailwind CSS 4 | Frontend styling foundation |
 | Real-time transport | Server-Sent Events | One-way live backend-to-dashboard updates |
+| History database | MongoDB Atlas | Optional power samples, device events, and actual kWh history |
 | Discord integration | discord.js 14 | Bot commands and proactive alert messages |
 | AI integration | Google Gen AI SDK | Friendly Discord response wording |
 | Default AI model | `gemini-3.5-flash` | Low-latency response humanization |
@@ -122,15 +127,16 @@ the same Next.js backend. The editable architecture source is available here:
 - Discord `!status`, `!room`, and `!usage` command implementation
 - Optional Gemini humanization with key failover and factual fallback
 - Proactive, deduplicated Discord alert watcher
+- Optional MongoDB history with automatic TTL retention
+- Actual elapsed-time energy integration and bounded analytics ranges
 - Editable dashboard UX and system architecture diagrams
+- ESP32-based representative hardware circuit simulation
 - Strict TypeScript, lint, and bot formatter verification
 
 ### Not yet completed
 
 - Production dashboard UI
 - Browser-level SSE and interaction testing
-- Wokwi/Tinkercad electrical schematic
-- Live Discord server verification with real credentials
 - Final screenshots and three-minute demonstration video
 
 ## Setup and installation
@@ -179,11 +185,13 @@ GEMINI_API_KEY_1=your_first_gemini_api_key
 GEMINI_API_KEY_2=your_optional_second_key
 GEMINI_API_KEY_3=your_optional_third_key
 GEMINI_MODEL=gemini-3.5-flash
+MONGODB_URI=your_mongodb_atlas_connection_string
 ```
 
 Only `DISCORD_TOKEN` is required to start the bot. `DISCORD_CHANNEL_ID` enables
 proactive alert posts. Gemini keys are optional because the bot has a
-deterministic non-AI fallback.
+deterministic non-AI fallback. MongoDB is also optional: without a URI, live
+state and session energy continue to work, but historical data is not persisted.
 
 ### 4. Configure the Discord application
 
@@ -227,7 +235,7 @@ The bot expects the Next.js server at the URL configured by `APP_BASE_URL`.
 | `!room drawing` | Reports the Drawing Room state |
 | `!room work1` | Reports the Work Room 1 state |
 | `!room work2` | Reports the Work Room 2 state |
-| `!usage` | Reports current total power, room breakdown, and estimated daily kWh |
+| `!usage` | Reports current power and measured today kWh when history is available |
 
 The bot also polls active alerts and can post newly detected alerts once to the
 configured channel. Resolved alert IDs are removed from its seen set, allowing
@@ -246,6 +254,7 @@ All endpoints use the Node.js runtime and dynamic responses.
 | `GET` | `/api/power` | Returns current and per-room power totals |
 | `GET` | `/api/alerts` | Returns all currently active alerts |
 | `GET` | `/api/sse` | Streams initial state and subsequent state changes |
+| `GET` | `/api/analytics?range=24h` | Returns measured energy and downsampled power history |
 
 Room aliases accepted by the room endpoint include `drawing`, `work1`, and
 `work2`. Unknown room names and device IDs return structured `404` responses.
@@ -308,6 +317,26 @@ New connections immediately receive a `snapshot` event. A heartbeat is emitted
 every 25 seconds to keep compatible proxies from closing idle connections.
 Event listeners and heartbeat timers are removed when clients disconnect.
 
+## Historical energy analytics
+
+The live device store remains in memory for fast REST and SSE updates. When
+`MONGODB_URI` is configured, the runtime additionally stores:
+
+- one aggregate power sample per minute in `power_samples`;
+- a `device_events` record only when a device changes state;
+- elapsed-time energy in kWh for the office and each room; and
+- timestamps suitable for hourly, daily, and weekly charts.
+
+Supported analytics ranges are `1h`, `8h`, `24h`, `7d`, `30d`, and `today`.
+Long ranges are grouped into larger time buckets so the dashboard receives a
+bounded response rather than every raw document. Power samples expire after 90
+days and device events after 30 days through MongoDB TTL indexes.
+
+If MongoDB is not configured or temporarily unavailable, `/api/analytics`
+returns the current process's session energy with `persistenceEnabled: false`.
+The simulator, REST API, SSE stream, dashboard, and Discord factual fallback
+continue operating.
+
 ## AI integration
 
 Gemini is used only to humanize already verified Discord facts.
@@ -333,6 +362,7 @@ only source of operational facts.
 app/
 ├── api/                         Next.js backend route handlers
 │   ├── alerts/
+│   ├── analytics/
 │   ├── devices/
 │   ├── power/
 │   ├── sse/
@@ -356,6 +386,9 @@ lib/
 ├── alerts.ts                    Computed alert rules
 ├── constants.ts                 Rooms, wattage, timing, aliases
 ├── devices.ts                   Shared store and simulator
+├── history.ts                   Energy integration and MongoDB history
+├── mongodb.ts                   Optional pooled MongoDB connection
+├── runtime.ts                   Starts simulator and history recorder
 ├── snapshot.ts                  Atomic office snapshot
 └── types.ts                     Strict domain contracts
 ```
@@ -369,6 +402,19 @@ lib/
 To edit a diagram, open <https://excalidraw.com> and drag the corresponding
 `.excalidraw` file onto the canvas. Keep the `.excalidraw` files as the editable
 sources and export PNG/SVG versions later for static README previews.
+
+## Hardware circuit simulation
+
+The representative one-room circuit uses an ESP32 with five independently
+controlled LED loads to model the room's two fans and three lights. Each load
+has a current-limiting resistor, and the running simulation demonstrates state
+changes from the microcontroller outputs. In a real mains installation, the
+ESP32 outputs would drive correctly rated, isolated relay or switching modules
+rather than powering fans or lights directly.
+
+[Open the live Wokwi simulation](https://wokwi.com/projects/468537900698064897)
+
+![ESP32 representative room circuit simulation](public/esp32-room-circuit-simulation.png)
 
 ## Testing and verification
 
@@ -393,12 +439,11 @@ workflow because this project requires explicit approval before running it.
 
 ## Known limitations and remaining work
 
-- The in-memory device state resets when the server process restarts.
+- Current device state resets when the server restarts; historical power and
+  event data persist when MongoDB is configured.
 - Multiple independent production server instances would not share memory.
-- Estimated daily energy is a projection from current power over eight hours,
-  not persisted historical metering.
+- `estimatedDailyKwh` remains an eight-hour projection; `actualEnergyKwh` from
+  `/api/analytics` is the measured elapsed-time value.
 - The production dashboard interface is still pending.
-- Discord behavior still needs manual verification with a real bot token.
-- The Wokwi/Tinkercad electrical schematic is pending.
 - Final screenshots, public repository URL, and demonstration video must be
   added before submission.

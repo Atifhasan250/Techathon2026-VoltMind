@@ -25,9 +25,10 @@ Build an office device monitoring system with **15 simulated electrical devices*
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     SIMULATED DEVICE LAYER                      │
-│  In-memory store: 15 devices (3 rooms × 5 devices each)        │
+│  In-memory store: 15 live devices (3 rooms × 5 devices each)   │
 │  Simulator timer: randomly toggles devices, updates timestamps  │
 │  Calculates power draw per device based on type + status        │
+│  MongoDB history: minute samples + state-change events (TTL)     │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
                            ▼
@@ -39,6 +40,7 @@ Build an office device monitoring system with **15 simulated electrical devices*
 │  ├── GET  /api/devices/room/[name] → Devices for a room         │
 │  ├── GET  /api/power         → Total + per-room power summary   │
 │  ├── GET  /api/alerts        → Active anomaly alerts            │
+│  ├── GET  /api/analytics     → Actual kWh + historical samples   │
 │  ├── POST /api/devices/[id]/toggle → Toggle a device on/off     │
 │  └── GET  /api/sse           → Server-Sent Events stream        │
 │                                                                 │
@@ -300,7 +302,7 @@ This is the **highest-weight deliverable** (20% dashboard + 10% UX = 30% total).
 | 4.4 | Implement `!usage` command | 🤖 | Calls `/api/power`, shows current total watts + estimated daily kWh |
 | 4.5 | Integrate Gemini LLM for humanized responses | 🤖 | Pass raw data to Gemini API with a system prompt to generate friendly, conversational responses (not robotic data dumps) |
 | 4.6 | Build alert watcher (BONUS) | 🤖 | Polls `/api/alerts` every 60 seconds, posts new alerts to designated channel with friendly tone |
-| 4.7 | Add `bot:start` script to package.json | 🤖 | `npx tsx bot/index.ts` command |
+| 4.7 | Add `bot:start` script to package.json | 🤖 | Run the TypeScript bot directly with Bun and `.env` loading |
 
 **Bot architecture**: The bot runs as a **separate process** alongside the Next.js dev server. It calls the same API routes (`http://localhost:3000/api/...`) that the dashboard uses.
 

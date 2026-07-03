@@ -11,7 +11,9 @@
 - [x] Gemini humanization with three-key failover, cache, and factual fallback
 - [x] Proactive deduplicated Discord alert watcher
 - [x] Bot formatter unit tests and non-build verification
-- [ ] Live Discord verification (requires a local `.env` with a valid token)
+- [x] Optional MongoDB power history, device events, TTL retention, and analytics API
+- [x] Discord usage reporting prefers measured today kWh when available
+- [x] Live Discord verification with real credentials
 
 The detailed checklist below is the original execution backlog and is retained
 for implementation detail. Its checkboxes are historical; the status block
@@ -25,9 +27,9 @@ above is authoritative for completed work.
   - [x] Install `discord.js` and `@google/genai` with Bun
   - [x] Verify both appear in `package.json` under `dependencies`
 
-- [x] **0.2** Install dev dependencies (if needed)
-  - [x] Install `tsx` as a dev dependency
-  - [x] `tsx` is configured to run the Discord bot TypeScript files directly
+- [x] **0.2** Use Bun's native TypeScript runtime for the bot
+  - [x] Avoid a separate `tsx` loader dependency
+  - [x] Load `.env` through Bun's `--env-file` option
 
 - [x] **0.3** Update `tsconfig.json` for strict mode
   - [x] Set `"strict": true` in `compilerOptions`
@@ -53,7 +55,7 @@ above is authoritative for completed work.
   ```
 
 - [x] **0.6** Add bot scripts to `package.json`
-  - [x] Add a Bun-compatible `bot:start` script using `tsx`
+  - [x] Add `"bot:start": "bun --env-file=.env bot/index.ts"`
   - [ ] Add `"dev:all": "concurrently \"npm run dev\" \"npm run bot:start\""` (optional, if concurrently is installed)
 
 - [x] **0.7** Update `.gitignore`
