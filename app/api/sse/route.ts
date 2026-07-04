@@ -1,8 +1,8 @@
 import { deviceEvents, getPowerSummary } from "@/lib/devices";
-import { getActiveAlerts } from "@/lib/alerts";
+import { alertEvents, getActiveAlerts } from "@/lib/alerts";
 import { startOfficeRuntime } from "@/lib/runtime";
 import { getOfficeSnapshot } from "@/lib/snapshot";
-import type { Device, StreamEvent } from "@/lib/types";
+import type { Alert, Device, StreamEvent } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,6 +38,14 @@ export function GET(request: Request) {
         });
       };
 
+      const onAlertsChanged = (alerts: Alert[]) => {
+        send({
+          type: "alerts-changed",
+          data: { alerts },
+          timestamp: new Date().toISOString(),
+        });
+      };
+
       send({
         type: "snapshot",
         data: getOfficeSnapshot(),
@@ -45,6 +53,7 @@ export function GET(request: Request) {
       });
 
       deviceEvents.on("state-changed", onStateChanged);
+      alertEvents.on("alerts-changed", onAlertsChanged);
       const heartbeat = setInterval(() => write(": heartbeat\n\n"), HEARTBEAT_INTERVAL_MS);
       heartbeat.unref?.();
 
@@ -53,6 +62,7 @@ export function GET(request: Request) {
         closed = true;
         clearInterval(heartbeat);
         deviceEvents.off("state-changed", onStateChanged);
+        alertEvents.off("alerts-changed", onAlertsChanged);
         try {
           controller.close();
         } catch {

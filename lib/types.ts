@@ -72,4 +72,9 @@ export type StreamEvent =
       type: "state-changed";
       data: { device: Device; power: PowerSummary; alerts: Alert[] };
       timestamp: string;
+    }
+  | {
+      type: "alerts-changed";
+      data: { alerts: Alert[] };
+      timestamp: string;
     };

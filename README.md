@@ -179,6 +179,7 @@ Then replace the placeholder values:
 
 ```dotenv
 APP_BASE_URL=http://localhost:3000
+OFFICE_TIMEZONE=Asia/Dhaka
 DISCORD_TOKEN=your_discord_bot_token
 DISCORD_CHANNEL_ID=your_alert_channel_id
 GEMINI_API_KEY_1=your_first_gemini_api_key
@@ -313,6 +314,11 @@ When a device changes, `/api/sse` sends a `state-changed` event containing:
 - the latest office and room power summary; and
 - the complete current alert list.
 
+The backend also evaluates time-based alert rules every 30 seconds. When an
+after-hours or two-hour condition activates or resolves without a device
+change, `/api/sse` sends an `alerts-changed` event. Office hours are evaluated
+in `OFFICE_TIMEZONE` (default: `Asia/Dhaka`), independent of server timezone.
+
 New connections immediately receive a `snapshot` event. A heartbeat is emitted
 every 25 seconds to keep compatible proxies from closing idle connections.
 Event listeners and heartbeat timers are removed when clients disconnect.
@@ -430,6 +436,8 @@ Current automated verification covers:
 
 - strict TypeScript correctness;
 - ESLint rules;
+- Dhaka-time office-hours boundaries and alert timestamps;
+- continuous all-devices-on duration and reset behavior;
 - Discord status formatting;
 - room alias resolution and factual room output; and
 - usage output preserving backend totals.

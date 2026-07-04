@@ -21,6 +21,8 @@ export const OFFICE_HOURS = {
   end: 17,
 } as const;
 
+export const OFFICE_TIMEZONE = process.env.OFFICE_TIMEZONE?.trim() || "Asia/Dhaka";
+
 export const SIMULATOR_CONFIG = {
   minIntervalMs: 5_000,
   maxIntervalMs: 15_000,
@@ -29,6 +31,7 @@ export const SIMULATOR_CONFIG = {
 
 export const ALERT_THRESHOLDS = {
   longRunningMs: 2 * 60 * 60 * 1_000,
+  evaluationIntervalMs: 30_000,
 } as const;
 
 export const MAX_POSSIBLE_WATTS =
