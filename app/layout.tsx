@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Hackathon",
-  description: "Hackathon project",
+  title: "VoltMind | Smart Office Control",
+  description: "Monitor and control the VoltMind smart office.",
 };
 
 export default function RootLayout({

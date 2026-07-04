@@ -45,3 +45,10 @@ next-env.d.ts
 
 # Local diagram generation helper; editable .excalidraw sources are committed.
 /scripts/generate-excalidraw.ts
+
+final*.html
+
+design.md
+product.md
+task.md
+plan.md
