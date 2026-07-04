@@ -915,41 +915,44 @@ function AnalyticsChart({ samples, height = 160 }: { samples: ChartSample[]; hei
 }
 
 function PowerAnalytics({ powerSummary }: { powerSummary: PowerSummary | null }) {
+  const [filter, setFilter] = useState<"live" | "day" | "week">("live");
   const [data, setData] = useState<EnergyAnalytics | null>(null);
 
   useEffect(() => {
-    fetch("/api/analytics?range=8h")
+    const range = filter === "live" ? "8h" : filter === "day" ? "24h" : "7d";
+    fetch(`/api/analytics?range=${range}`)
       .then((res) => res.json())
       .then((json) => setData(json.analytics))
       .catch(console.error);
-  }, []);
-
-  const pathD = data?.samples ? generatePath(data.samples, 340, 100) : "M0 100 L340 100";
+  }, [filter]);
 
   return (
     <Card>
       <div className="title-row">
         <h2>Power Analytics</h2>
         <div className="tabs">
-          <b>Live</b>
-          <span>Day</span>
-          <span>Week</span>
+          {filter === "live" ? <b>Live</b> : <span style={{ cursor: "pointer" }} onClick={() => setFilter("live")}>Live</span>}
+          {filter === "day" ? <b>Day</b> : <span style={{ cursor: "pointer" }} onClick={() => setFilter("day")}>Day</span>}
+          {filter === "week" ? <b>Week</b> : <span style={{ cursor: "pointer" }} onClick={() => setFilter("week")}>Week</span>}
         </div>
       </div>
       <div className="chart-label">
-        <span>Power (W) — last 8 hours</span>
-        <b>{powerSummary?.totalWatts || 0}W</b>
+        <span>Power (W) — last {filter === "live" ? "8 hours" : filter === "day" ? "24 hours" : "7 days"}</span>
+        <b>
+          {filter === "live" ? powerSummary?.totalWatts || 0 : Math.round(data?.peakWatts || 0)}W
+          {filter !== "live" && <small style={{ fontSize: 11, fontWeight: 400, opacity: 0.6, marginLeft: 4 }}>Peak</small>}
+        </b>
       </div>
       <LineChart samples={data?.samples || []} height={110} />
       <b className="subhead">Room Breakdown</b>
-      {Object.entries(powerSummary?.perRoom || { "Drawing Room": 0, "Work Room 1": 0, "Work Room 2": 0 }).map(([name, w]) => {
-        const total = Math.max(powerSummary?.totalWatts || 1, 1);
-        const pct = (w / total) * 100;
+      {Object.entries((filter === "live" ? powerSummary?.perRoom : data?.perRoomKwh) || { "Drawing Room": 0, "Work Room 1": 0, "Work Room 2": 0 }).map(([name, val]) => {
+        const total = filter === "live" ? Math.max(powerSummary?.totalWatts || 1, 1) : Math.max(data?.actualEnergyKwh || 1, 1);
+        const pct = (val / total) * 100;
         const color = name.includes("Drawing") ? "#0F3B2E" : name.includes("1") ? "#2E7D5B" : "#94A3B8";
         return (
           <div className="progress-row" key={String(name)}>
             <span>{name}</span>
-            <b style={{ color: String(color) }}>{Math.round(w)}W</b>
+            <b style={{ color: String(color) }}>{filter === "live" ? `${Math.round(val)}W` : `${val.toFixed(2)}kWh`}</b>
             <div>
               <i style={{ width: `${pct}%`, background: String(color) }} />
             </div>
