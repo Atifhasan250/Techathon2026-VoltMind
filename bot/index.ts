@@ -36,4 +36,7 @@ const shutdown = () => {
 process.once("SIGINT", shutdown);
 process.once("SIGTERM", shutdown);
 
-await client.login(token);
+client.login(token).catch((err) => {
+  console.error("[Bot] Failed to login:", err);
+  process.exit(1);
+});
