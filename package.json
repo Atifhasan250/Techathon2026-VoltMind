@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "bot:start": "npx tsx bot/index.ts",
+    "bot:start": "npx tsx --env-file=.env bot/index.ts",
     "bot:start:local": "bun --env-file=.env bot/index.ts",
     "bot:check": "tsc --noEmit",
     "bot:test": "bun test bot/formatters.test.ts",
