@@ -7,6 +7,8 @@
 
 **Live dashboard:** [voltmind.atifhasan.com](https://voltmind.atifhasan.com)
 
+**Deployment:** Dashboard and API on Vercel · Discord bot on Render
+
 ![VoltMind live dashboard](public/dashboard-image.png)
 
 ## Problem statement understanding
@@ -173,6 +175,12 @@ The bot reads the backend URL from `APP_BASE_URL`. In production, it points to t
 
 The bot also checks active alerts and posts each newly triggered alert once to the configured Discord channel.
 
+### Discord bot in action
+
+The screenshot below shows proactive energy alerts and live responses for `!status` and `!usage`. Every value is derived from the shared backend snapshot before Gemini optionally improves the wording.
+
+![VoltMind Discord bot responding to live office data](public/discord-bot.png)
+
 ## API endpoints documentation
 
 | Method | Endpoint                   | Purpose                                                            |
@@ -234,6 +242,7 @@ diagrams/
   system-architecture.excalidraw
 public/
   dashboard-image.png
+  discord-bot.png
   system-architecture.png
   wokwi-esp32-room-circuit-simulation.png
 wokwi/
@@ -260,7 +269,3 @@ Automated tests cover Dhaka office-hour boundaries, long-running alerts, room al
 - MongoDB history is optional; without it, analytics fall back to session data.
 - The Wokwi circuit is a representative low-voltage simulation, not a mains-ready electrical design.
 - A multi-instance production backend would require a shared live-state store to keep every instance synchronized.
-
-## License
-
-Created for the Techathon 2026 challenge.
