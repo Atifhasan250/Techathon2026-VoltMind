@@ -1,167 +1,110 @@
 # VoltMind
 
-> A real-time office energy monitoring system powered by simulated devices, a
-> shared Next.js backend, a live web dashboard, and a Discord assistant.
+> A real-time office energy monitoring system that keeps a live web dashboard and a Discord assistant in sync through one shared backend.
 
-## Quick links
+[![Live Dashboard](https://img.shields.io/badge/Live_Dashboard-voltmind.atifhasan.com-2e7d5b?style=for-the-badge)](https://voltmind.atifhasan.com)
+[![Wokwi Simulation](https://img.shields.io/badge/Wokwi-Open_Simulation-7c4dff?style=for-the-badge)](https://wokwi.com/projects/468537900698064897)
 
-- [Problem statement](#problem-statement)
-- [Solution approach](#solution-approach)
-- [System architecture](#system-architecture)
-- [Technologies used](#technologies-used)
-- [Current implementation status](#current-implementation-status)
-- [Setup and installation](#setup-and-installation)
-- [How to run the application](#how-to-run-the-application)
-- [Discord bot usage](#discord-bot-usage)
-- [API documentation](#api-documentation)
-- [Real-time update flow](#real-time-update-flow)
-- [Historical energy analytics](#historical-energy-analytics)
-- [AI integration](#ai-integration)
-- [Project structure](#project-structure)
-- [Diagrams](#diagrams)
-- [Hardware circuit simulation](#hardware-circuit-simulation)
-- [Testing and verification](#testing-and-verification)
-- [Known limitations and remaining work](#known-limitations-and-remaining-work)
+**Live dashboard:** [voltmind.atifhasan.com](https://voltmind.atifhasan.com)
 
-## Problem statement
+![VoltMind live dashboard](public/dashboard-image.png)
 
-The office operates through Discord, but lights and fans are regularly left on
-after employees leave. This wastes electricity, increases operating costs, and
-is usually discovered too late.
+## Problem statement understanding
 
-VoltMind must provide one consistent view of the office through both a web
-dashboard and a Discord bot. The fixed office setup contains three rooms:
+The challenge describes a small office where most daily communication happens on Discord, but lights and fans are often left running after people leave. The result is wasted electricity, a growing bill, and no simple way to notice the problem early.
 
-- **Drawing Room** — waiting and visitor area;
-- **Work Room 1** — employee workspace; and
-- **Work Room 2** — employee workspace.
+The fixed office contains three rooms: **Drawing Room**, **Work Room 1**, and **Work Room 2**. Each room has two fans and three lights, giving VoltMind **15 simulated devices** in total. Every device records its status, wattage, room, type, and last state-change time.
 
-Each room contains two fans and three lights. The system therefore monitors
-**15 devices in total**: six fans and nine lights.
+VoltMind solves the visibility gap with two interfaces: a live web dashboard for monitoring the whole office and a Discord bot for quick status checks. Both interfaces read from the same backend, so they always reflect the same simulated office state.
 
-Every device must expose:
+## Solution approach and architecture
 
-- current status: `on` or `off`;
-- rated wattage;
-- room;
-- device name and type; and
-- the timestamp of its most recent state change.
+VoltMind uses the Next.js application as the single source of truth. A simulator changes one or two device states every 5–15 seconds. The shared backend then recalculates power usage and alert conditions before exposing the latest snapshot through REST APIs and Server-Sent Events (SSE).
 
-Because the project does not use physical hardware, device activity must be
-simulated and must change over time. The dashboard must update without a page
-refresh, while the Discord bot must answer from the same current state rather
-than from hardcoded responses.
+The dashboard receives an initial snapshot and continues updating through SSE without a page refresh. The Discord bot, deployed separately on Render, requests the same backend state instead of keeping its own device data. MongoDB Atlas optionally persists power samples, device events, energy totals, and alert history. Gemini only turns verified facts into friendlier Discord messages; it never creates device data or controls the office state.
 
-## Solution approach
+![VoltMind system architecture](public/system-architecture.png)
 
-VoltMind uses a deliberately small architecture with one source of truth:
+[Open the editable system architecture diagram](diagrams/system-architecture.excalidraw)
 
-1. An in-memory simulator owns the state of all 15 devices.
-2. One or two devices are toggled every 5–15 seconds.
-3. Every change updates the device's `status` and `lastChanged` timestamp.
-4. The backend derives current power consumption and active alerts from this
-   shared state.
-5. REST endpoints provide complete snapshots and targeted queries.
-6. Server-Sent Events push changes to the dashboard in real time.
-7. The Discord bot reads `/api/state`, so it observes the same state as the
-   dashboard.
-8. Gemini may rewrite verified facts conversationally, but never creates or
-   owns device state.
-9. MongoDB optionally stores minute-level power samples and device changes for
-   historical energy analytics.
+### End-to-end data flow
 
-This avoids unnecessary databases, queues, microservices, and WebSocket
-infrastructure while still satisfying the hackathon's live-data requirements.
+1. The simulator changes a fan or light in the shared device store.
+2. The backend updates `status` and `lastChanged`, then recalculates power and alerts.
+3. REST endpoints return complete or filtered snapshots.
+4. SSE pushes state and alert changes to the dashboard in real time.
+5. The Render-hosted Discord bot requests the same backend snapshot for every command.
+6. MongoDB stores historical samples when `MONGODB_URI` is configured.
 
-## System architecture
+## Key features
 
-```text
-Simulated Devices
-       │
-       ▼
-Shared In-Memory Device Store
-       │
-       ▼
-Next.js Backend API
-       ├──────── REST snapshots ───────► Discord Bot ─────► Discord User
-       │                                      │
-       │                                      └── optional Gemini wording
-       │
-       └── REST + SSE live updates ────► Web Dashboard ───► Dashboard User
-```
-
-The dashboard and bot do not maintain independent device stores. Both read from
-the same Next.js backend. The editable architecture source is available here:
-
-- [Open the system architecture in Excalidraw](diagrams/system-architecture.excalidraw)
+- Live state for 15 fans and lights across three rooms
+- Dashboard, room, analytics, and alert views
+- Automatic UI updates through Server-Sent Events
+- Office-wide and per-room power calculations
+- Estimated daily usage and measured historical energy analytics
+- After-hours, all-devices-on, and two-hour continuous-running alerts
+- Discord commands backed by the same live state as the dashboard
+- Proactive, deduplicated Discord alert notifications
+- Optional Gemini response humanization with deterministic fallback
+- Optional MongoDB history with retention limits
+- Representative ESP32 circuit simulation for one room
 
 ## Technologies used
 
-| Area | Technology | Purpose |
-| --- | --- | --- |
-| Language | TypeScript 5 | Strictly typed backend, bot, and frontend code |
-| Web framework | Next.js 16 App Router | Dashboard and backend route handlers |
-| UI runtime | React 19 | Dashboard interface |
-| Styling | Tailwind CSS 4 | Frontend styling foundation |
-| Real-time transport | Server-Sent Events | One-way live backend-to-dashboard updates |
-| History database | MongoDB Atlas | Optional power samples, device events, and actual kWh history |
-| Discord integration | discord.js 14 | Bot commands and proactive alert messages |
-| AI integration | Google Gen AI SDK | Friendly Discord response wording |
-| Default AI model | `gemini-3.5-flash` | Low-latency response humanization |
-| Package/runtime tooling | Bun | Dependency installation, scripts, and tests |
-| Diagram source | Excalidraw | Editable UX and architecture diagrams |
+| Area                | Technology                    | Use in VoltMind                                |
+| ------------------- | ----------------------------- | ---------------------------------------------- |
+| Language            | TypeScript 5                  | Strictly typed frontend, backend, and bot      |
+| Web application     | Next.js 16, React 19          | Dashboard and API route handlers               |
+| Styling             | Tailwind CSS 4, custom CSS    | Responsive dashboard interface                 |
+| Real-time updates   | Server-Sent Events            | Backend-to-dashboard state updates             |
+| Database            | MongoDB Atlas                 | Power, energy, device-event, and alert history |
+| Discord integration | discord.js 14                 | Commands and proactive alerts                  |
+| AI integration      | Google Gen AI SDK             | Friendly wording for verified responses        |
+| AI model            | `gemini-3.5-flash` by default | Configurable through `GEMINI_MODEL`            |
+| Runtime and tooling | Bun                           | Installation, local scripts, and tests         |
+| Deployment          | Vercel and Render             | Web/API and Discord bot hosting                |
+| Diagrams            | Excalidraw and Wokwi          | System architecture and circuit simulation     |
 
-## Current implementation status
+## Dashboard
 
-### Completed
+The deployed dashboard provides four focused views:
 
-- Shared state for 15 devices across three rooms
-- Realistic fan and light wattages
-- Random state changes every 5–15 seconds
-- Device lookup, room filtering, and manual toggle operation
-- Office-wide and per-room power calculations
-- Estimated eight-hour daily energy consumption
-- After-hours alerts outside 9:00 AM–5:00 PM
-- All-devices-on and two-hour continuous-running alerts
-- REST API and SSE stream
-- Discord `!status`, `!room`, and `!usage` command implementation
-- Optional Gemini humanization with key failover and factual fallback
-- Proactive, deduplicated Discord alert watcher
-- Optional MongoDB history with automatic TTL retention
-- Actual elapsed-time energy integration and bounded analytics ranges
-- Editable dashboard UX and system architecture diagrams
-- ESP32-based representative hardware circuit simulation
-- Strict TypeScript, lint, and bot formatter verification
+- **Dashboard:** office summary, floor view, current power, device activity, and active alerts
+- **Rooms:** room-by-room fan, light, and wattage breakdown
+- **Analytics:** historical power and energy charts for 24 hours, 7 days, or 30 days
+- **Alerts:** active and recent alert history grouped by severity and time
 
-### Not yet completed
+Open the live application at [voltmind.atifhasan.com](https://voltmind.atifhasan.com).
 
-- Production dashboard UI
-- Browser-level SSE and interaction testing
-- Final screenshots and three-minute demonstration video
+## Hardware circuit simulation
 
-## Setup and installation
+The Wokwi simulation represents one room with an ESP32 controlling three light indicators and two fan indicators through separate GPIO pins and current-limiting resistors. One representative room is enough for the concept because all three office rooms use the same device layout.
+
+[Open the live Wokwi project](https://wokwi.com/projects/468537900698064897)
+
+![Running Wokwi simulation of the ESP32 circuit for one office room](public/wokwi-esp32-room-circuit-simulation.png)
+
+The LEDs represent low-voltage simulated loads. A real installation would require isolated, correctly rated relay or switching modules between the ESP32 and mains-powered fans or lights.
+
+## Setup and installation instructions
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/)
-- Node.js 20 or newer for deployment compatibility
-- A Discord application and bot token for Discord testing
-- An optional [Gemini API key](https://aistudio.google.com/app/apikey)
+- [Bun](https://bun.sh/) or Node.js 20+
+- A Discord application and bot token
+- MongoDB Atlas for persistent history (optional)
+- A Gemini API key for humanized replies (optional)
 
-### 1. Clone the repository
+### 1. Clone and install
 
 ```bash
-git clone <your-public-repository-url>
+git clone https://github.com/Atifhasan250/Techathon2026-VoltMind.git
 cd Techathon2026-VoltMind
-```
-
-### 2. Install dependencies
-
-```bash
 bun install
 ```
 
-### 3. Create the environment file
+### 2. Configure the environment
 
 Copy `.env.example` to `.env`:
 
@@ -169,258 +112,135 @@ Copy `.env.example` to `.env`:
 Copy-Item .env.example .env
 ```
 
-On Bash-compatible systems:
-
-```bash
-cp .env.example .env
-```
-
-Then replace the placeholder values:
+Set the values needed for your environment:
 
 ```dotenv
 APP_BASE_URL=http://localhost:3000
 OFFICE_TIMEZONE=Asia/Dhaka
+
+MONGODB_URI=your_mongodb_atlas_connection_string
+
 DISCORD_TOKEN=your_discord_bot_token
 DISCORD_CHANNEL_ID=your_alert_channel_id
+
 GEMINI_API_KEY_1=your_first_gemini_api_key
 GEMINI_API_KEY_2=your_optional_second_key
 GEMINI_API_KEY_3=your_optional_third_key
 GEMINI_MODEL=gemini-3.5-flash
-MONGODB_URI=your_mongodb_atlas_connection_string
 ```
 
-Only `DISCORD_TOKEN` is required to start the bot. `DISCORD_CHANNEL_ID` enables
-proactive alert posts. Gemini keys are optional because the bot has a
-deterministic non-AI fallback. MongoDB is also optional: without a URI, live
-state and session energy continue to work, but historical data is not persisted.
+Only `DISCORD_TOKEN` is required to run the bot. MongoDB, the alert channel, and Gemini are optional. Without Gemini, the bot returns a deterministic factual response. Without MongoDB, live monitoring still works, but historical data is limited to the current server session.
 
-### 4. Configure the Discord application
+### 3. Configure Discord
 
-1. Create an application in the Discord Developer Portal.
-2. Add a bot to the application.
-3. Enable **Message Content Intent**.
-4. Invite the bot with permission to view channels, read message history, and
-   send messages.
-5. Copy the bot token into `DISCORD_TOKEN`.
-6. Enable Discord Developer Mode, copy the target channel ID, and place it in
-   `DISCORD_CHANNEL_ID`.
+1. Create a bot in the Discord Developer Portal.
+2. Enable **Message Content Intent**.
+3. Invite it with permission to view channels, read message history, and send messages.
+4. Add the bot token to `DISCORD_TOKEN`.
+5. Add a channel ID to `DISCORD_CHANNEL_ID` to enable proactive alert messages.
 
-Never commit the real `.env` file or expose bot and Gemini credentials.
+Never commit the real `.env` file or expose API keys and bot tokens.
 
 ## How to run the application
 
-The backend/dashboard server and Discord bot run as separate processes because
-the bot consumes the same public backend API as the dashboard.
+The dashboard/backend and Discord bot run as separate processes.
 
-### Terminal 1 — start Next.js
+### Terminal 1 — dashboard and backend
 
 ```bash
 bun run dev
 ```
 
-The application is available at <http://localhost:3000>.
+Open [http://localhost:3000](http://localhost:3000).
 
-### Terminal 2 — start the Discord bot
+### Terminal 2 — Discord bot
 
 ```bash
 bun run bot:start
 ```
 
-The bot expects the Next.js server at the URL configured by `APP_BASE_URL`.
+The bot reads the backend URL from `APP_BASE_URL`. In production, it points to the deployed VoltMind backend.
 
-## Discord bot usage
+### Discord commands
 
-| Command | Result |
-| --- | --- |
-| `!status` | Summarizes current fan and light states for all rooms |
-| `!room drawing` | Reports the Drawing Room state |
-| `!room work1` | Reports the Work Room 1 state |
-| `!room work2` | Reports the Work Room 2 state |
-| `!usage` | Reports current power and measured today kWh when history is available |
+| Command         | Response                                                     |
+| --------------- | ------------------------------------------------------------ |
+| `!status`       | Current fan and light summary for all rooms                  |
+| `!room drawing` | Detailed Drawing Room state                                  |
+| `!room work1`   | Detailed Work Room 1 state                                   |
+| `!room work2`   | Detailed Work Room 2 state                                   |
+| `!usage`        | Current power and today's measured or estimated energy usage |
 
-The bot also polls active alerts and can post newly detected alerts once to the
-configured channel. Resolved alert IDs are removed from its seen set, allowing
-a future recurrence to be announced again.
+The bot also checks active alerts and posts each newly triggered alert once to the configured Discord channel.
 
-## API documentation
+## API endpoints documentation
 
-All endpoints use the Node.js runtime and dynamic responses.
+| Method | Endpoint                   | Purpose                                                            |
+| ------ | -------------------------- | ------------------------------------------------------------------ |
+| `GET`  | `/api/state`               | Complete atomic snapshot of devices, power, and alerts             |
+| `GET`  | `/api/devices`             | All 15 devices and their current state                             |
+| `GET`  | `/api/devices/room/:name`  | Devices in one room; accepts aliases such as `drawing` and `work1` |
+| `POST` | `/api/devices/:id/toggle`  | Toggle a device and update its `lastChanged` value                 |
+| `GET`  | `/api/power`               | Office-wide and per-room power summary                             |
+| `GET`  | `/api/alerts`              | Currently active alerts                                            |
+| `GET`  | `/api/alerts/history`      | Recent persisted alert history                                     |
+| `GET`  | `/api/analytics?range=24h` | Energy totals and downsampled power history                        |
+| `GET`  | `/api/sse`                 | Initial snapshot and subsequent live state events                  |
 
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `GET` | `/api/state` | Atomic snapshot containing devices, power, and alerts |
-| `GET` | `/api/devices` | Lists all 15 devices and their current state |
-| `GET` | `/api/devices/room/:name` | Lists devices for one room |
-| `POST` | `/api/devices/:id/toggle` | Toggles one device and updates `lastChanged` |
-| `GET` | `/api/power` | Returns current and per-room power totals |
-| `GET` | `/api/alerts` | Returns all currently active alerts |
-| `GET` | `/api/sse` | Streams initial state and subsequent state changes |
-| `GET` | `/api/analytics?range=24h` | Returns measured energy and downsampled power history |
-
-Room aliases accepted by the room endpoint include `drawing`, `work1`, and
-`work2`. Unknown room names and device IDs return structured `404` responses.
-
-### Example: complete state
+Example requests:
 
 ```bash
 curl http://localhost:3000/api/state
-```
-
-```json
-{
-  "devices": [],
-  "power": {
-    "totalWatts": 240,
-    "perRoom": {
-      "Drawing Room": 75,
-      "Work Room 1": 90,
-      "Work Room 2": 75
-    },
-    "estimatedDailyKwh": 1.92,
-    "devicesOn": 8,
-    "devicesOff": 7,
-    "measuredAt": "2026-07-03T15:00:00.000Z"
-  },
-  "alerts": []
-}
-```
-
-The device and alert arrays above are shortened for documentation. Runtime
-responses contain the complete current data.
-
-### Example: room query
-
-```bash
 curl http://localhost:3000/api/devices/room/work1
-```
-
-### Example: toggle a device
-
-```bash
 curl -X POST http://localhost:3000/api/devices/drawing-room-fan-1/toggle
-```
-
-### Example: live event stream
-
-```bash
 curl -N http://localhost:3000/api/sse
 ```
 
-## Real-time update flow
-
-When a device changes, `/api/sse` sends a `state-changed` event containing:
-
-- the changed device;
-- the latest office and room power summary; and
-- the complete current alert list.
-
-The backend also evaluates time-based alert rules every 30 seconds. When an
-after-hours or two-hour condition activates or resolves without a device
-change, `/api/sse` sends an `alerts-changed` event. Office hours are evaluated
-in `OFFICE_TIMEZONE` (default: `Asia/Dhaka`), independent of server timezone.
-
-New connections immediately receive a `snapshot` event. A heartbeat is emitted
-every 25 seconds to keep compatible proxies from closing idle connections.
-Event listeners and heartbeat timers are removed when clients disconnect.
-
-## Historical energy analytics
-
-The live device store remains in memory for fast REST and SSE updates. When
-`MONGODB_URI` is configured, the runtime additionally stores:
-
-- one aggregate power sample per minute in `power_samples`;
-- a `device_events` record only when a device changes state;
-- elapsed-time energy in kWh for the office and each room; and
-- timestamps suitable for hourly, daily, and weekly charts.
-
 Supported analytics ranges are `1h`, `8h`, `24h`, `7d`, `30d`, and `today`.
-Long ranges are grouped into larger time buckets so the dashboard receives a
-bounded response rather than every raw document. Power samples expire after 90
-days and device events after 30 days through MongoDB TTL indexes.
 
-If MongoDB is not configured or temporarily unavailable, `/api/analytics`
-returns the current process's session energy with `persistenceEnabled: false`.
-The simulator, REST API, SSE stream, dashboard, and Discord factual fallback
-continue operating.
+## AI integration details
 
-## AI integration
-
-Gemini is used only to humanize already verified Discord facts.
+VoltMind does not use AI to generate device state. The backend first produces a deterministic response from the real simulated snapshot. Gemini receives only those verified facts and rewrites them in a concise, conversational style.
 
 - Default model: `gemini-3.5-flash`
-- Configurable using `GEMINI_MODEL`
-- Up to three API keys supported for failover
-- Low temperature (`0.2`) to reduce factual variation
-- Ten-second response cache to limit repeated API calls
-- System instruction requires every number, unit, room, and device state to be
-  preserved
-- Responses are limited to 900 characters
-- Deterministic formatted facts are returned if every key fails or no key is
-  configured
+- Model can be changed through `GEMINI_MODEL`
+- No training or fine-tuning was performed
+- Runtime prompt-based generation preserves rooms, states, numbers, and units
+- Low temperature reduces factual variation
+- Up to three API keys are supported for failover
+- A short cache reduces repeated API calls
+- If every AI request fails, the original deterministic response is returned
 
-No model was trained or fine-tuned for this project. There is no retrieval
-database and no AI-generated device data. The simulator and backend remain the
-only source of operational facts.
+This keeps the LLM outside the source-of-truth path: it can improve wording, but it cannot invent or change operational data.
 
 ## Project structure
 
 ```text
 app/
-├── api/                         Next.js backend route handlers
-│   ├── alerts/
-│   ├── analytics/
-│   ├── devices/
-│   ├── power/
-│   ├── sse/
-│   └── state/
-├── globals.css
-├── layout.tsx
-└── page.tsx                     Dashboard entry point
+  api/                  Next.js backend routes for state, power, alerts and history
+  page.tsx              Live dashboard, rooms, analytics and alerts views
 bot/
-├── alert-watcher.ts             Proactive Discord alerts
-├── backend.ts                   Shared backend client
-├── commands.ts                  Discord command routing
-├── formatters.ts                Deterministic factual responses
-├── formatters.test.ts
-├── index.ts                     Discord client entry point
-└── llm.ts                       Optional Gemini humanization
-diagrams/
-├── dashboard-ux-skeleton.excalidraw
-├── system-architecture.excalidraw
-└── README.md
+  backend.ts            Client for the shared VoltMind backend
+  commands.ts           Discord command routing
+  alert-watcher.ts      Proactive alert polling and deduplication
+  llm.ts                Optional Gemini humanization and fallback
 lib/
-├── alerts.ts                    Computed alert rules
-├── constants.ts                 Rooms, wattage, timing, aliases
-├── devices.ts                   Shared store and simulator
-├── history.ts                   Energy integration and MongoDB history
-├── mongodb.ts                   Optional pooled MongoDB connection
-├── runtime.ts                   Starts simulator and history recorder
-├── snapshot.ts                  Atomic office snapshot
-└── types.ts                     Strict domain contracts
+  devices.ts            Shared device state and simulator
+  alerts.ts             Alert evaluation and scheduled monitoring
+  history.ts            MongoDB persistence and energy integration
+  snapshot.ts           Consistent office snapshot
+  types.ts              Strict domain and API contracts
+diagrams/
+  system-architecture.excalidraw
+public/
+  dashboard-image.png
+  system-architecture.png
+  wokwi-esp32-room-circuit-simulation.png
+wokwi/
+  sketch.ino            ESP32 simulation logic
+  diagram.json          Wokwi parts and circuit connections
+  wokwi-project.txt     Live Wokwi project reference
 ```
-
-## Diagrams
-
-- [Dashboard UX skeleton — open editable Excalidraw file](diagrams/dashboard-ux-skeleton.excalidraw)
-- [System architecture — open editable Excalidraw file](diagrams/system-architecture.excalidraw)
-- [Diagram explanation and editing guide](diagrams/README.md)
-
-To edit a diagram, open <https://excalidraw.com> and drag the corresponding
-`.excalidraw` file onto the canvas. Keep the `.excalidraw` files as the editable
-sources and export PNG/SVG versions later for static README previews.
-
-## Hardware circuit simulation
-
-The representative one-room circuit uses an ESP32 with five independently
-controlled LED loads to model the room's two fans and three lights. Each load
-has a current-limiting resistor, and the running simulation demonstrates state
-changes from the microcontroller outputs. In a real mains installation, the
-ESP32 outputs would drive correctly rated, isolated relay or switching modules
-rather than powering fans or lights directly.
-
-[Open the live Wokwi simulation](https://wokwi.com/projects/468537900698064897)
-
-![ESP32 representative room circuit simulation](public/esp32-room-circuit-simulation.png)
 
 ## Testing and verification
 
@@ -428,30 +248,19 @@ Run the non-build checks:
 
 ```bash
 bun node_modules/typescript/bin/tsc --noEmit
-bun run bot:test
+bun test
 bun run lint
 ```
 
-Current automated verification covers:
+Automated tests cover Dhaka office-hour boundaries, long-running alerts, room aliases, Discord formatting, and preservation of backend power totals. The project uses TypeScript strict mode.
 
-- strict TypeScript correctness;
-- ESLint rules;
-- Dhaka-time office-hours boundaries and alert timestamps;
-- continuous all-devices-on duration and reset behavior;
-- Discord status formatting;
-- room alias resolution and factual room output; and
-- usage output preserving backend totals.
+## Known limitations
 
-The build command is intentionally not included in the current verification
-workflow because this project requires explicit approval before running it.
+- Live device state is held in memory and resets when the web runtime restarts.
+- MongoDB history is optional; without it, analytics fall back to session data.
+- The Wokwi circuit is a representative low-voltage simulation, not a mains-ready electrical design.
+- A multi-instance production backend would require a shared live-state store to keep every instance synchronized.
 
-## Known limitations and remaining work
+## License
 
-- Current device state resets when the server restarts; historical power and
-  event data persist when MongoDB is configured.
-- Multiple independent production server instances would not share memory.
-- `estimatedDailyKwh` remains an eight-hour projection; `actualEnergyKwh` from
-  `/api/analytics` is the measured elapsed-time value.
-- The production dashboard interface is still pending.
-- Final screenshots, public repository URL, and demonstration video must be
-  added before submission.
+Created for the Techathon 2026 challenge.
