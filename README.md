@@ -4,12 +4,11 @@
 
 [![Live Dashboard](https://img.shields.io/badge/Live_Dashboard-voltmind.atifhasan.com-2e7d5b?style=for-the-badge)](https://voltmind.atifhasan.com)
 [![Wokwi Simulation](https://img.shields.io/badge/Wokwi-Open_Simulation-7c4dff?style=for-the-badge)](https://wokwi.com/projects/468537900698064897)
+[![Demo Video](https://img.shields.io/badge/Demo_Video-Watch_on_Google_Drive-e85d3f?style=for-the-badge)](https://drive.google.com/file/d/1iZw6HzjVoDQs8etesofrprQoN2zJTcxU/view?usp=sharing)
 
-**Live dashboard:** [voltmind.atifhasan.com](https://voltmind.atifhasan.com)
+**Live dashboard:**
 
-**Deployment:** Dashboard and API on Vercel · Discord bot on Render
-
-![VoltMind live dashboard](public/dashboard-image.png)
+[![VoltMind live dashboard](public/dashboard-image.png)](https://voltmind.atifhasan.com)
 
 ## Problem statement understanding
 
@@ -67,6 +66,10 @@ The dashboard receives an initial snapshot and continues updating through SSE wi
 | Runtime and tooling | Bun                           | Installation, local scripts, and tests         |
 | Deployment          | Vercel and Render             | Web/API and Discord bot hosting                |
 | Diagrams            | Excalidraw and Wokwi          | System architecture and circuit simulation     |
+
+### AI-assisted development
+
+Codex and ChatGPT were used during development to support brainstorming, code implementation, debugging, documentation, and review. All generated suggestions were inspected, adapted, and verified against the project requirements and codebase. This development assistance is separate from VoltMind's runtime Gemini integration, which is used only to humanize verified Discord responses.
 
 ## Dashboard
 
@@ -262,10 +265,3 @@ bun run lint
 ```
 
 Automated tests cover Dhaka office-hour boundaries, long-running alerts, room aliases, Discord formatting, and preservation of backend power totals. The project uses TypeScript strict mode.
-
-## Known limitations
-
-- Live device state is held in memory and resets when the web runtime restarts.
-- MongoDB history is optional; without it, analytics fall back to session data.
-- The Wokwi circuit is a representative low-voltage simulation, not a mains-ready electrical design.
-- A multi-instance production backend would require a shared live-state store to keep every instance synchronized.
