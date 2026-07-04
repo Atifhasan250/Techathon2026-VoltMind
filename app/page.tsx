@@ -586,7 +586,7 @@ function FloorPlan({ rooms }: { rooms: Room[] }) {
                 title={`${room.room} light ${index + 1} ${on ? "on" : "off"}`}
                 key={`${room.room}-light-${index}`}
               >
-                <Image src="/light.png" alt="" width={34} height={34} />
+                <Image src="/light.png" alt="" width={34} height={34} priority />
               </span>
             ))}
             {room.fans.map(([left, top, on], index) => (
@@ -596,7 +596,7 @@ function FloorPlan({ rooms }: { rooms: Room[] }) {
                 title={`${room.room} fan ${index + 1} ${on ? "on" : "off"}`}
                 key={`${room.room}-fan-${index}`}
               >
-                <Image src="/fan.png" alt="" width={48} height={48} />
+                <Image src="/fan.png" alt="" width={48} height={48} priority />
               </span>
             ))}
           </div>
