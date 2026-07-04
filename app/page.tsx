@@ -1217,16 +1217,30 @@ function Alerts({ liveAlerts }: { liveAlerts: BackendAlert[] }) {
   const [seenAlerts, setSeenAlerts] = useState<BackendAlert[]>([]);
   const [hoveredBar, setHoveredBar] = useState<number | null>(null);
 
-  // Fetch history on mount
+  // Fetch history on mount and occasionally
   useEffect(() => {
-    fetch("/api/alerts/history")
-      .then((res) => res.json())
-      .then((data) => setHistory(data.alerts || []))
-      .catch((err) => console.error("Failed to fetch alert history:", err));
+    let active = true;
+    const fetchHistory = () => {
+      fetch("/api/alerts/history")
+        .then((res) => res.json())
+        .then((data) => {
+          if (active) setHistory(data.alerts || []);
+        })
+        .catch((err) => console.error("Failed to fetch alert history:", err));
+    };
+    
+    fetchHistory();
+    const interval = setInterval(fetchHistory, 60000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, []);
 
+  const liveAlertsStr = liveAlerts.map(a => `${a.id}-${a.timestamp}`).join(",");
+
   // When liveAlerts changes, accumulate into seenAlerts buffer
-  // and re-fetch history so resolved alerts appear in graph
+  // so resolved alerts appear in graph immediately
   useEffect(() => {
     if (liveAlerts.length > 0) {
       setSeenAlerts((prev) => {
@@ -1235,12 +1249,7 @@ function Alerts({ liveAlerts }: { liveAlerts: BackendAlert[] }) {
         return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
       });
     }
-    // Re-fetch history from DB when alerts change (picks up newly saved records)
-    fetch("/api/alerts/history")
-      .then((res) => res.json())
-      .then((data) => setHistory(data.alerts || []))
-      .catch(() => {});
-  }, [liveAlerts]);
+  }, [liveAlertsStr]);
 
   const critical = liveAlerts.filter(a => a.severity === "critical").length;
   const warning = liveAlerts.filter(a => a.severity === "warning").length;
