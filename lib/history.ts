@@ -2,12 +2,14 @@ import type { Collection, Document } from "mongodb";
 import { ROOM_NAMES } from "@/lib/constants";
 import { deviceEvents, getPowerSummary } from "@/lib/devices";
 import { getMongoDatabase, isMongoConfigured } from "@/lib/mongodb";
+import { alertEvents } from "@/lib/alerts";
 import type {
   AnalyticsRange,
   Device,
   EnergyAnalytics,
   PowerSummary,
   RoomName,
+  Alert,
 } from "@/lib/types";
 
 const SAMPLE_INTERVAL_MS = 60_000;
@@ -82,11 +84,13 @@ function integrateUntil(timestamp: number): void {
 async function collections(): Promise<{
   samples: Collection<Document>;
   events: Collection<Document>;
+  alerts: Collection<Document>;
 } | null> {
   const database = await getMongoDatabase();
   if (!database) return null;
   const samples = database.collection("power_samples");
   const events = database.collection("device_events");
+  const alerts = database.collection("alert_history");
 
   if (!state.indexesReady) {
     const indexesReady = Promise.all([
@@ -95,6 +99,7 @@ async function collections(): Promise<{
       events.createIndex({ changedAt: -1 }),
       events.createIndex({ deviceId: 1, changedAt: -1 }),
       events.createIndex({ expireAt: 1 }, { expireAfterSeconds: 0 }),
+      alerts.createIndex({ timestamp: -1 }),
     ]).then(() => undefined);
     state.indexesReady = indexesReady;
 
@@ -107,7 +112,7 @@ async function collections(): Promise<{
   } else {
     await state.indexesReady;
   }
-  return { samples, events };
+  return { samples, events, alerts };
 }
 
 async function recordDeviceEvent(device: Device): Promise<void> {
@@ -167,10 +172,46 @@ function onStateChanged(device: Device): void {
   );
 }
 
+async function recordAlerts(alertsList: Alert[]): Promise<void> {
+  if (alertsList.length === 0) return;
+  const store = await collections();
+  if (!store) return;
+
+  const ops = alertsList.map((alert) => {
+    const timestamp = new Date(alert.timestamp);
+    return {
+      updateOne: {
+        filter: { _id: `${alert.id}-${alert.timestamp}` as any },
+        update: {
+          $setOnInsert: {
+            id: alert.id,
+            type: alert.type,
+            message: alert.message,
+            room: alert.room,
+            severity: alert.severity,
+            timestamp,
+            devices: alert.devices,
+          },
+        },
+        upsert: true,
+      },
+    };
+  });
+
+  await store.alerts.bulkWrite(ops, { ordered: false });
+}
+
+function onAlertsChanged(alertsList: Alert[]): void {
+  void recordAlerts(alertsList).catch((error) =>
+    console.error("[MongoDB] Alert history write failed:", error),
+  );
+}
+
 export function startHistoryRecorder(): void {
   initializeState();
   if (!state.listenerAttached) {
     deviceEvents.on("state-changed", onStateChanged);
+    alertEvents.on("alerts-changed", onAlertsChanged);
     state.listenerAttached = true;
   }
   if (state.timer) return;
@@ -323,4 +364,23 @@ export async function getEnergyAnalytics(range: AnalyticsRange): Promise<EnergyA
     })),
     measuredAt: now.toISOString(),
   };
+}
+
+export async function getAlertHistory(days: number): Promise<Alert[]> {
+  const store = await collections();
+  if (!store) return [];
+
+  const since = new Date(Date.now() - days * 86_400_000);
+  
+  const documents = await store.alerts.find({ timestamp: { $gte: since } }).sort({ timestamp: -1 }).toArray();
+
+  return documents.map(doc => ({
+    id: doc.id,
+    type: doc.type,
+    message: doc.message,
+    room: doc.room,
+    severity: doc.severity,
+    timestamp: doc.timestamp.toISOString(),
+    devices: doc.devices,
+  }));
 }
